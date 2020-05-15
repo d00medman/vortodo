@@ -1,0 +1,84 @@
+syntax = "proto3";
+
+package list;
+
+import "google/protobuf/timestamp.proto";
+
+service ListService {
+    // Saves a single list for a given user
+    rpc CreateList(CreateListsRequest) returns (CreateListResponse) {}
+    // Saves n >= 1 task descriptions to an extant List
+    rpc AddTasksToList(AddTasksToListRequest) returns (AddTasksToListResponse) {}
+    // Gets information about n >= 1 lists by ID lookup
+    rpc GetLists(MultiListRequest) returns (MultiList) {}
+    // Flips the completion status of n >= 1 task
+    rpc ToggleTasks(ToggleTaskRequest) returns (ToggleTaskResponse) {}
+}
+
+// Performs n >= 1 actions on lists by ID
+message MultiListRequest {
+    repeated int64 ListIds = 1;
+}
+
+// A list of lists
+message MultiList {
+    repeated List Lists = 1;
+}
+
+message List {
+    string ListName = 1;
+    int64 ListId = 2;
+    string ListUser = 3;
+    repeated Task ListTasks = 4;
+    google.protobuf.Timestamp ListCreated = 5;
+}
+
+// ListTasks to complete
+message Task {
+    int64 TaskId = 1;
+    string TaskDescription = 2;
+    bool TaskComplete = 3;
+    google.protobuf.Timestamp TaskCreated = 4;
+}
+
+// Takes in a creator name (extension to a users service would be a logical next step)
+message CreateListsRequest {
+    string ListName = 1;
+    string ListUser = 2;
+}
+
+// Returns ID of newly created list
+message CreateListResponse {
+    int64 ListId = 1;
+    BaseResponse Response = 2;
+}
+
+// Contains a List ID and the tasks to be associated with it. All tasks are assumed to be incomplete upon creation
+message AddTasksToListRequest {
+    int64 ListId = 1;
+    repeated string TaskDescriptions = 2;
+}
+
+// Returns the IDs of newly created lists
+message AddTasksToListResponse {
+    repeated int64 TaskIds = 1;
+    BaseResponse Response = 2;
+}
+
+// Takes in a series of Task IDs and flips their completed status
+message ToggleTaskRequest {
+    repeated int64 TaskIds = 1;
+}
+
+// Returns the updated task statuses
+message ToggleTaskResponse {
+    repeated Task ListTasks = 1;
+    BaseResponse Response = 2;
+}
+
+// Common fields used by many endpoint responses
+message BaseResponse {
+    string Message = 1;
+    bool Error = 2;
+    string ErrorMessage = 3;
+}

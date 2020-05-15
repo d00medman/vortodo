@@ -1,0 +1,24 @@
+apiVersion: apps/v1beta1
+kind: Deployment
+metadata:
+  name: simpletodo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: simpletodo
+  template:
+    metadata:
+      labels:
+        app: simpletodo
+    spec:
+      containers:
+        - name: simpletodo
+          image: gcr.io/vortodo/simpletodo:latest
+          imagePullPolicy: Always
+          env:
+            - name: DB_HOST
+              value: "postgres"
+          ports:
+            - containerPort: 50051
+              name: simpletodo
