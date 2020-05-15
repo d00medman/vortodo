@@ -15,17 +15,20 @@ import (
 )
 
 const (
-	deployedAddress = "34.67.1.155:80"
-	localAddress    = "localhost:50051"
+	// deployedAddress = "34.67.1.155:80"
+	localAddress = "localhost:50051"
 )
 
 func grpcClientConnect() (client pb.ListServiceClient, conn *grpc.ClientConn) {
-	// Quick fudge so I only need to alter this in one place rather than repeatedly change it
-	address := deployedAddress
-	// address := localAddress
+	address := os.Getenv("GRPC_SERVER_ADDRESS")
+	if address == "" {
+		address = localAddress
+	}
 	conn, err := grpc.Dial(address, grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("Failed to connect to GRPC client at address %v: %v", address, err)
+	} else {
+		log.Printf("Connected to address %v", address)
 	}
 	client = pb.NewListServiceClient(conn)
 	return client, conn
@@ -114,11 +117,31 @@ func toggleTasksHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Fprintf(w, responseMsg)
 }
 
+func deleteListHandler(w http.ResponseWriter, r *http.Request) {
+	client, conn := grpcClientConnect()
+	defer conn.Close()
+
+	decoder := json.NewDecoder(r.Body)
+	var deleteListsRequest *pb.MultiListRequest
+	if err := decoder.Decode(&deleteListsRequest); err != nil {
+		panic(err)
+	}
+	log.Println(deleteListsRequest)
+
+	response, err := client.DeleteLists(context.Background(), deleteListsRequest)
+	if err != nil {
+		log.Fatalf("Could not delete lists: %v", err)
+	}
+	log.Println(response.Message)
+	fmt.Fprintf(w, response.Message)
+}
+
 func main() {
 	http.HandleFunc("/createList", createListHandler)
 	http.HandleFunc("/addTaskToList", addTaskToListHandler)
 	http.HandleFunc("/getLists", getListsHandler)
 	http.HandleFunc("/toggleTasks", toggleTasksHandler)
+	http.HandleFunc("/deleteLists", deleteListHandler)
 
 	// [START setting_port]
 	port := os.Getenv("PORT")

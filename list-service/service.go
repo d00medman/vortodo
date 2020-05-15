@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	pb "simpletodo/list-service/proto/list"
 
 	"github.com/go-acme/lego/log"
@@ -68,4 +69,14 @@ func (s *service) ToggleTasks(ctx context.Context, req *pb.ToggleTaskRequest) (r
 		updatedTasks = append(updatedTasks, toggledTask)
 	}
 	return &pb.ToggleTaskResponse{ListTasks: updatedTasks}, nil
+}
+
+func (s *service) DeleteLists(ctx context.Context, req *pb.MultiListRequest) (res *pb.BaseResponse, err error) {
+	for _, listId := range req.ListIds {
+		if err := s.repo.DeleteList(listId); err != nil {
+			log.Printf("Error encountered in DeleteLists for list ID %v: %v\n", listId, err)
+			return nil, err
+		}
+	}
+	return &pb.BaseResponse{Message: fmt.Sprintf("Successful deletion of lists\n")}, nil
 }

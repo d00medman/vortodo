@@ -13,6 +13,8 @@ service ListService {
     rpc GetLists(MultiListRequest) returns (MultiList) {}
     // Flips the completion status of n >= 1 task
     rpc ToggleTasks(ToggleTaskRequest) returns (ToggleTaskResponse) {}
+    // Deletes n >= 1 lists by ID lookup
+    rpc DeleteLists(MultiListRequest) returns (BaseResponse) {}
 }
 
 // Performs n >= 1 actions on lists by ID

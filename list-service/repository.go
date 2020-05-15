@@ -21,6 +21,7 @@ type repository interface {
 	GetList(int64) (*pb.List, error)
 	GetTaskLists(int64) ([]*pb.Task, error)
 	ToggleTask(int64) (*pb.Task, error)
+	DeleteList(int64) error
 }
 
 type Repository struct {
@@ -80,7 +81,7 @@ func (repo *Repository) InsertNewTask(listId int64, taskDescription string) (new
 	query := `INSERT INTO tasks (list_id, task_description) VALUES ($1, $2) RETURNING task_id`
 	stmt, err := repo.db.Prepare(query)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Fatal error in prepare statement of InsertNewTask: %v\n", err)
 	}
 	err = stmt.QueryRow(listId, taskDescription).Scan(&newTaskId)
 	if err != nil {
@@ -98,6 +99,7 @@ func (repo *Repository) GetList(listId int64) (list *pb.List, err error) {
 		FROM lists where list_id = $1
 	`
 	list = &pb.List{}
+	// Todo: maybe come up with better method for handling conversion of time stamps
 	var timestamp time.Time
 	err = repo.db.QueryRow(query, listId).Scan(&list.ListId, &list.ListName, &list.ListUser, &timestamp)
 	if err != nil {
@@ -140,12 +142,33 @@ func (repo *Repository) ToggleTask(taskId int64) (task *pb.Task, err error) {
 			  RETURNING task_complete`
 	stmt, err := repo.db.Prepare(query)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Fatal error in preparing statement for ToggleTask: %v\n", err)
 	}
 	task = &pb.Task{TaskId: taskId}
 	err = stmt.QueryRow(taskId).Scan(&task.TaskComplete)
 	if err != nil {
-		log.Fatal(err)
+		log.Fatal("Fatal error in row scan of ToggleTask: %v\n", err)
 	}
 	return
+}
+
+func (repo *Repository) DeleteList(listId int64) error {
+	tx, err := repo.db.Begin()
+	if err != nil {
+		log.Fatal("Fatal error starting transaction to delete list %v: %v\n", listId, err)
+	}
+	if _, err := tx.Exec("DELETE FROM tasks WHERE list_id = $1", listId); err != nil {
+		tx.Rollback()
+		log.Fatal("Fatal error Deleting tasks associated with list %v: %v; rolling transaction back\n", listId, err)
+	}
+	if _, err := tx.Exec("DELETE FROM lists WHERE list_id = $1", listId); err != nil {
+		tx.Rollback()
+		log.Fatal("Fatal error Deleting List %v: %v; rolling transaction back\n", listId, err)
+	}
+	if err := tx.Commit(); err != nil {
+		tx.Rollback()
+		log.Fatal("Fatal error committing transaction to delete List %v: %v; rolling transaction back\n", listId, err)
+	}
+	log.Printf("Successfully deleted list and tasks for list %v\n", listId)
+	return nil
 }
